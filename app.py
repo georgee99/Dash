@@ -30,26 +30,25 @@ def generate_table(dataframe, max_rows=10):
         ])
     ])
 
-def create_table():
-    fig = dash_table.DataTable(
-        id='datatable-advanced-filtering',
-        columns=[
-            {'name': i, 'id': i, 'deletable': True} for i in df.columns
-            # omit the id column
-            if i != 'id'
-        ],
-        data=df.to_dict('records'),
-        editable=True,
-        page_action='native',
-        page_size=10,
-        filter_action="native"
+
+def create_table(dataframe):
+    # return html.Div([
+    #     dash_table.DataTable(
+    #         id='editing-prune-data',
+    #         columns=[{'id': c, 'name': c} for c in dataframe.columns],
+    #         data = dataframe.to_dict('records'),
+    #         editable = True
+    #     )
+    # ])
+    return dash_table.DataTable(
+            id='editing-prune-data',
+            columns=[{'id': c, 'name': c} for c in dataframe.columns],
+            # data = dataframe.to_dict('records'),
+            editable = True
     )
 
-    return fig
 
-
-
-def another_graph():
+def line_graph():
     return dcc.Graph(
         id='first_graph', style={'height': '70vh'}
     )
@@ -135,14 +134,14 @@ app.layout = html.Div([
 
     dcc.Tabs([
         dcc.Tab(label='Line Graph View', style=tab_styling, selected_style=tab_selected_styling, children=[
-            another_graph()
+            line_graph()
         ]),
         dcc.Tab(label='Bar Chart View', style=tab_styling, selected_style=tab_selected_styling, children=[
             bar_graph()
         ]),
         dcc.Tab(label='Table View', style=tab_styling, selected_style=tab_selected_styling, children=[
-            generate_table(df),
-            # create_table()
+            # generate_table(df),
+            create_table(df)
         ])
     ], style=tab_parent_styling),
 
@@ -151,36 +150,33 @@ app.layout = html.Div([
         interval=3 * 1000,  # in milliseconds
         n_intervals=10
     ),
-        # generate_table(df),
-        # another_graph(),
-        # bar_graph()
-
 ])
 
 @app.callback(
     Output('first_graph','figure'),
     Output('bar_graph', 'figure'),
+    Output('editing-prune-data', 'data'),
     [Input('interval-component', 'n_intervals')],
     [Input('dropdown','value')],
-    [Input('dropdown-methodology', 'value')]
+    [Input('dropdown-methodology', 'value')],
 )
 
-def update_figure(n_intervals, selected_state, selected_method):
+def update_figure( n_intervals, selected_state, selected_method):
     # Formatting the data
-
     filtered_df = df[(df.REGION == selected_state) & (df.METHOD == selected_method)].head(n_intervals)
-    # date_count = len(df[df.REGION == selected_state][df.METHOD == selected_method]['SETTLEMENTDATE'])
 
     date_count = len(df[(df.REGION == selected_state) & (df.METHOD == selected_method)]['SETTLEMENTDATE'])
 
-
     dates = filtered_df['SETTLEMENTDATE'].to_numpy()
+    price = filtered_df['RRP'].to_numpy()
+    demand = filtered_df['TOTALDEMAND'].to_numpy()
+
+
+    # date_count = len(df[df.REGION == selected_state][df.METHOD == selected_method]['SETTLEMENTDATE'])
     # print(len(dates))
     # print(dates)
     # dates = np.delete(dates, 0)
-    price = filtered_df['RRP'].to_numpy()
     # price = np.delete(price, 0)
-    demand = filtered_df['TOTALDEMAND'].to_numpy()
     # demand = np.delete(demand, 0)
 
     remainder = date_count - 10
@@ -191,12 +187,6 @@ def update_figure(n_intervals, selected_state, selected_method):
 
     min_demand = np.amin(demand)
     max_demand = np.amax(demand)
-
-
-    # dates = np.append(dates, remainder_df.iloc[n_intervals]['SETTLEMENTDATE'])
-    # price = np.append(price, remainder_df.iloc[n_intervals]['RRP'])
-    # demand = np.append(demand, remainder_df.iloc[n_intervals]['TOTALDEMAND'])
-
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -274,10 +264,14 @@ def update_figure(n_intervals, selected_state, selected_method):
     else:
         pass
 
+    # Table graph
+
+    the_table = filtered_df.to_dict('rows')
+
     if date_count - n_intervals < 1:
         raise PreventUpdate
 
-    return fig, bar_chart
+    return fig, bar_chart, the_table
 
 if __name__ == '__main__':
     app.run_server(debug=True)
