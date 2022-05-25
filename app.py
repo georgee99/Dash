@@ -10,13 +10,13 @@ from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-import time
 from dash.exceptions import PreventUpdate
 import dash_table
 
 # df = pd.read_csv('table.csv')
+df = pd.read_csv('delete_this.csv')
 
-df = pd.read_csv('copy_of_final_table.csv')
+# df = pd.read_csv('copy_of_final_table.csv')
 
 def generate_table(dataframe, max_rows=10):
     return html.Table([
@@ -32,19 +32,14 @@ def generate_table(dataframe, max_rows=10):
 
 
 def create_table(dataframe):
-    # return html.Div([
-    #     dash_table.DataTable(
-    #         id='editing-prune-data',
-    #         columns=[{'id': c, 'name': c} for c in dataframe.columns],
-    #         data = dataframe.to_dict('records'),
-    #         editable = True
-    #     )
-    # ])
     return dash_table.DataTable(
-            id='editing-prune-data',
-            columns=[{'id': c, 'name': c} for c in dataframe.columns],
-            # data = dataframe.to_dict('records'),
-            editable = True
+            id='table-output',
+            columns=[{'id': c, 'name': c} for c in dataframe.columns[:-1]],
+            editable = True,
+            # page_size = 30,
+            # page_action='none',
+            fixed_rows={'headers': True},
+            style_table={'height': '1000'}
     )
 
 
@@ -76,7 +71,7 @@ def method_dropdown():
                      value='ARIMA',
                      multi=False,
                      disabled=False,
-                     clearable=True,
+                     clearable=False,
                      searchable=True,
                      placeholder='Choose Methodology...',
                      persistence='string',
@@ -92,7 +87,7 @@ def state_dropdown():
                      value='NSW',
                      multi=False,
                      disabled=False,
-                     clearable=True,
+                     clearable=False,
                      searchable=True,
                      placeholder='Choose State...',
                      persistence='string',
@@ -101,6 +96,7 @@ def state_dropdown():
     ], style={'margin-right': '40px'})
 
 app = dash.Dash(__name__)
+server = app.server
 
 # Styling classes
 
@@ -123,7 +119,7 @@ tab_parent_styling = {
 
 app.layout = html.Div([
     html.Div([
-        html.H1('Electricity Price and Demand Forecast', style={'color': 'blue', 'margin': '20px auto'}),
+        html.H1('Electricity Price and Demand Forecast', style={'color': 'blue', 'margin': '20px auto 40px auto', 'font-family':"Verdana"}),
     ], style={'display': 'flex'}),
     html.Div([
         state_dropdown(),
@@ -141,8 +137,9 @@ app.layout = html.Div([
         ]),
         dcc.Tab(label='Table View', style=tab_styling, selected_style=tab_selected_styling, children=[
             # generate_table(df),
+            html.Br(),
             create_table(df)
-        ])
+        ], )
     ], style=tab_parent_styling),
 
     dcc.Interval(
@@ -155,13 +152,13 @@ app.layout = html.Div([
 @app.callback(
     Output('first_graph','figure'),
     Output('bar_graph', 'figure'),
-    Output('editing-prune-data', 'data'),
+    Output('table-output', 'data'),
     [Input('interval-component', 'n_intervals')],
     [Input('dropdown','value')],
     [Input('dropdown-methodology', 'value')],
 )
 
-def update_figure( n_intervals, selected_state, selected_method):
+def update_figure(n_intervals, selected_state, selected_method):
     # Formatting the data
     filtered_df = df[(df.REGION == selected_state) & (df.METHOD == selected_method)].head(n_intervals)
 
@@ -170,14 +167,6 @@ def update_figure( n_intervals, selected_state, selected_method):
     dates = filtered_df['SETTLEMENTDATE'].to_numpy()
     price = filtered_df['RRP'].to_numpy()
     demand = filtered_df['TOTALDEMAND'].to_numpy()
-
-
-    # date_count = len(df[df.REGION == selected_state][df.METHOD == selected_method]['SETTLEMENTDATE'])
-    # print(len(dates))
-    # print(dates)
-    # dates = np.delete(dates, 0)
-    # price = np.delete(price, 0)
-    # demand = np.delete(demand, 0)
 
     remainder = date_count - 10
     remainder_df = df[df.REGION == selected_state].tail(remainder)
