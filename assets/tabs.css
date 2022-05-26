@@ -5,3 +5,27 @@
 .tabs-selected {
     background-color: #03ffd5;
 }
+
+.app-header {
+    font-family: cursive;
+    font-size: 40px;
+    color: blue;
+    margin: 20px auto 20px auto;
+    transition: all 0.2s;
+}
+
+.app-header:hover {
+    transform: scale(1.2);
+}
+
+.button_modal {
+    transition: all 0.2s;
+    color: white;
+    font-family: cursive;
+    background-color: #119DFF
+}
+
+.button_modal:hover {
+    transform: scale(1.2);
+    color: white;
+}

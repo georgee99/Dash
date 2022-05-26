@@ -6,40 +6,34 @@ import dash_html_components as html
 import dash_core_components as dcc
 import pandas as pd
 import plotly.express as px
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from dash.exceptions import PreventUpdate
 import dash_table
+from dash import no_update
+import dash_bootstrap_components as dbc
+
 
 # df = pd.read_csv('table.csv')
-df = pd.read_csv('delete_this.csv')
+df = pd.read_csv('table_copy.csv')
+# df = pd.read_csv('delete_this.csv')
 
 # df = pd.read_csv('copy_of_final_table.csv')
-
-def generate_table(dataframe, max_rows=10):
-    return html.Table([
-        html.Thead(
-            html.Tr([html.Th(col) for col in dataframe.columns])
-        ),
-        html.Tbody([
-            html.Tr([
-                html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-            ]) for i in range(min(len(dataframe), max_rows))
-        ])
-    ])
-
 
 def create_table(dataframe):
     return dash_table.DataTable(
             id='table-output',
-            columns=[{'id': c, 'name': c} for c in dataframe.columns[:-1]],
+            columns=[{'id': c, 'name': c} for c in dataframe.columns[:-2]],
             editable = True,
-            # page_size = 30,
-            # page_action='none',
-            fixed_rows={'headers': True},
-            style_table={'height': '1000'}
+            page_size = 18,
+            style_header={
+                # 'backgroundColor': 'white',
+                'fontWeight': 'bold',
+            },
+            style_cell={'textAlign': 'left'},
+            style_table={'width': '90%', 'margin': '0 auto'}
     )
 
 
@@ -52,13 +46,6 @@ def bar_graph():
     return dcc.Graph(
         id='bar_graph', style={'height': '70vh'}
     )
-
-def interval():
-    return dcc.Interval(
-        id='interval-component',
-        interval=1*1000,
-        n_intervals=0
-    ),
 
 def method_dropdown():
     return html.Div([
@@ -84,7 +71,7 @@ def state_dropdown():
         dcc.Dropdown(id='dropdown',
                      options=[{'label': x, 'value': x} for x in
                               df.sort_values('REGION')['REGION'].unique()],
-                     value='NSW',
+                     value='NSW1',
                      multi=False,
                      disabled=False,
                      clearable=False,
@@ -95,13 +82,42 @@ def state_dropdown():
 
     ], style={'margin-right': '40px'})
 
-app = dash.Dash(__name__)
+explanation_text = 'This web application forecasts the price and demand of electricity in Australia. You can filter out ' \
+                   'the data by "State" and "Machine Learning Methodology" using the dropdowns. You can also toggle between ' \
+                   'the visualisations by using the tabs. The visualisations include a Line Graph, Bar Chart, and a Table View. '
+
+def pop_up_modal():
+    return html.Div(
+        [
+            dbc.Button("How to use", id="modal_button", n_clicks=0, className='button_modal'),
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(dbc.ModalTitle("How to use this application")),
+                    dbc.ModalBody(explanation_text),
+                    dbc.ModalFooter(
+                        dbc.Button(
+                            "Close", id="close_button", className="ms-auto", n_clicks=0
+                        )
+                    ),
+                ],
+                id="explanation_modal",
+                is_open=False,
+                size='md',
+                backdrop=True,
+                fade=True,
+        )
+    ], style={'margin': '0 auto'})
+
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
+app.title = "UTS Capstone Project 12900825"
 
 # Styling classes
 
 tab_styling = {
-    'borderBottom': '1px solid #d6d6d6',
+    'border': '1px solid #d6d6d6',
+    'backgroundColor': 'white',
+
 }
 
 tab_selected_styling = {
@@ -114,13 +130,16 @@ tab_selected_styling = {
 tab_parent_styling = {
     'margin': '0 auto',
     'width': '90%',
+    'font-family': 'cursive',
 }
 
 
 app.layout = html.Div([
     html.Div([
-        html.H1('Electricity Price and Demand Forecast', style={'color': 'blue', 'margin': '20px auto 40px auto', 'font-family':"Verdana"}),
-    ], style={'display': 'flex'}),
+        html.H1('Electricity Price and Demand Forecast', className="app-header"),
+        pop_up_modal(),
+    ], style={'display': 'grid'}),
+
     html.Div([
         state_dropdown(),
         method_dropdown(),
@@ -136,7 +155,6 @@ app.layout = html.Div([
             bar_graph()
         ]),
         dcc.Tab(label='Table View', style=tab_styling, selected_style=tab_selected_styling, children=[
-            # generate_table(df),
             html.Br(),
             create_table(df)
         ], )
@@ -145,8 +163,11 @@ app.layout = html.Div([
     dcc.Interval(
         id='interval-component',
         interval=3 * 1000,  # in milliseconds
-        n_intervals=10
+        n_intervals=10,
+        max_intervals=13 # set this to the length of the filtered dataframe
     ),
+
+    html.H3('George El-Zakhem 12900825', style={'margin': '10px 2rem', 'font-size': '20px'}),
 ])
 
 @app.callback(
@@ -160,6 +181,7 @@ app.layout = html.Div([
 
 def update_figure(n_intervals, selected_state, selected_method):
     # Formatting the data
+
     filtered_df = df[(df.REGION == selected_state) & (df.METHOD == selected_method)].head(n_intervals)
 
     date_count = len(df[(df.REGION == selected_state) & (df.METHOD == selected_method)]['SETTLEMENTDATE'])
@@ -167,9 +189,6 @@ def update_figure(n_intervals, selected_state, selected_method):
     dates = filtered_df['SETTLEMENTDATE'].to_numpy()
     price = filtered_df['RRP'].to_numpy()
     demand = filtered_df['TOTALDEMAND'].to_numpy()
-
-    remainder = date_count - 10
-    remainder_df = df[df.REGION == selected_state].tail(remainder)
 
     min_price = np.amin(price)
     max_price = np.amax(price)
@@ -184,9 +203,10 @@ def update_figure(n_intervals, selected_state, selected_method):
         go.Scatter(x=dates[n_intervals-10 : n_intervals], y=price[n_intervals-10 : n_intervals], name="price", marker_color="blue",
             marker=dict(
                 size=15,
+                symbol='circle',
                 line=dict(
                     color='Black',
-                    width=2
+                    width=2,
                 )
         ),),
         secondary_y=False,
@@ -196,6 +216,7 @@ def update_figure(n_intervals, selected_state, selected_method):
         go.Scatter(x=dates[n_intervals-10 : n_intervals], y=demand[n_intervals-10 : n_intervals], name="demand", marker_color='purple',
             marker=dict(
                 size=15,
+                symbol='circle',
                 line=dict(
                     color='Black',
                     width=2
@@ -219,48 +240,47 @@ def update_figure(n_intervals, selected_state, selected_method):
         pass
 
     # Bar Chart below
-    bar_chart = make_subplots(specs=[[{"secondary_y": True}]])
-
-    bar_chart.add_trace(
-        go.Bar(x=dates[n_intervals-10 : n_intervals], y=demand[n_intervals-10 : n_intervals], name="demand", marker_color='red',),
-        secondary_y=False,
+    bar_chart = go.Figure(
+        data=[
+            go.Bar(x=dates[n_intervals - 10: n_intervals], y=price[n_intervals - 10: n_intervals], name="price",
+                   marker_color='blue', yaxis='y', offsetgroup=1, textposition='auto'),
+            go.Bar(x=dates[n_intervals - 10: n_intervals], y=demand[n_intervals - 10: n_intervals], name="demand",
+                   marker_color='purple', yaxis='y2', offsetgroup=2, textposition='auto')
+        ],
+        layout={
+            'yaxis': {'title': '<b>Price</b> $'},
+            'yaxis2': {'title': '<b>Demand</b> (MW)', 'overlaying': 'y', 'side': 'right'}
+        }
     )
 
-    bar_chart.add_trace(
-        go.Scatter(x=dates[n_intervals-10 : n_intervals], y=price[n_intervals-10 : n_intervals], name="price", marker_color='yellow',
-            marker=dict(
-                size=22.5,
-                line=dict(
-                    color='Black',
-                    width=2,
-                )
-        ),),
-        secondary_y=True,
-    )
+    bar_chart.update_layout(barmode='group', title_text="Bar Chart")
 
-    # Add figure title
-    bar_chart.update_layout(
-        title_text="Bar Chart"
-    )
-
-    bar_chart.update_xaxes(title_text="Time Period")
-    bar_chart.update_yaxes(title_text="<b>Price</b> $", secondary_y=False)
-    bar_chart.update_yaxes(title_text="<b>Demand</b> units", secondary_y=True)
-
-    # bar_chart.add_vline(x='1/01/2019 3:30', line_dash="dash", line_width=7);
     if '1/01/2019 7:30' in dates[-10:]:
         bar_chart.add_vline(x='1/01/2019 7:30', line_dash="dash", line_width=7);
     else:
         pass
 
     # Table graph
-
     the_table = filtered_df.to_dict('rows')
 
-    if date_count - n_intervals < 1:
-        raise PreventUpdate
+    # if date_count - n_intervals < 0:
+        # raise PreventUpdate
+        # return no_update, '{} is prime!'.format(n_intervals)
+    print(n_intervals)
 
     return fig, bar_chart, the_table
+
+@app.callback(
+    Output("explanation_modal", "is_open"),
+    [Input("modal_button", "n_clicks"), Input("close_button", "n_clicks")],
+    [State("explanation_modal", "is_open")],
+)
+
+def update_modall(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    else:
+        return is_open
 
 if __name__ == '__main__':
     app.run_server(debug=True)
