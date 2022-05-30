@@ -1,11 +1,3 @@
-.tabs {
-    background-color: #acff11;
-}
-
-.tabs-selected {
-    background-color: #03ffd5;
-}
-
 .app-header {
     font-family: cursive;
     font-size: 40px;
@@ -22,7 +14,7 @@
     transition: all 0.2s;
     color: white;
     font-family: cursive;
-    background-color: #119DFF
+    background-color: #1fa3ff
 }
 
 .button_modal:hover {

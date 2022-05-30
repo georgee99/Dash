@@ -17,10 +17,9 @@ def create_table(dataframe):
             id='table-output',
             columns=[{'id': c, 'name': c} for c in dataframe.columns[:-1]],
             filter_action='native',
-            editable = True,
-            page_size = 18,
+            editable=True,
+            page_size=18,
             style_header={
-                # 'backgroundColor': 'white',
                 'fontWeight': 'bold',
             },
             style_cell={'textAlign': 'left'},
@@ -39,46 +38,42 @@ def bar_graph():
 
 def method_dropdown():
     return html.Div([
-        html.Label(['Choose the Forecast methodology method'], style={'font-weight': 'bold', "text-align": "center", "margin-right": "10px"}),
-        html.Abbr("?", title="These methods are Machine Learning models used to forecast future "
+        html.Label(['Select a Forecast methodology method'], style={'font-weight': 'bold', "text-align": "center", "margin-right": "10px"}),
+        html.Abbr("?", title="These methods are Machine Learning models used to forecast "
                              "electricity prices and demand."),
         dcc.Dropdown(id='dropdown-methodology',
-                     options=[{'label': x, 'value': x} for x in
+                     options=[{'label': m, 'value': m} for m in
                               df.sort_values('METHOD')['METHOD'].unique()],
                      value='ARIMA',
                      multi=False,
                      disabled=False,
                      clearable=False,
                      searchable=True,
-                     placeholder='Choose Methodology...',
-                     persistence='string',
-                     persistence_type='memory'),
+                     placeholder='Choose Methodology...'),
     ])
 
 def state_dropdown():
     return html.Div([
-        html.Label(['Choose the state you want'], style={'font-weight': 'bold', "text-align": "center"}),
+        html.Label(['Select a state'], style={'font-weight': 'bold', "text-align": "center"}),
         dcc.Dropdown(id='dropdown',
-                     options=[{'label': x, 'value': x} for x in
+                     options=[{'label': s, 'value': s} for s in
                               df.sort_values('REGION')['REGION'].unique()],
                      value='NSW',
                      multi=False,
                      disabled=False,
                      clearable=False,
                      searchable=True,
-                     placeholder='Choose State...',
-                     persistence='string',
-                     persistence_type='memory'),
+                     placeholder='Choose State...'),
 
     ], style={'margin-right': '40px'})
 
 explanation_text = 'This web application forecasts the price and demand of electricity in Australia. You can filter out ' \
                    'the data by "State" and "Machine Learning Methodology" using the dropdowns.'
 explanation_text2 = 'You can also toggle between the visualisations by using the tabs. The visualisations include a Line ' \
-                    'Graph, Bar Chart, and a Table View. The visualisations contain multiple y-axes. The Price axis (' \
+                    'Graph, Bar Chart, and a Table View. The visualisations contain two y-axes. The Price axis (' \
                     '$AUD) is listed on the left, and Demand Axis (MW) is listed on the right.'
 explanation_text3 = 'In the table visualisation, you can also search for certain data including date, price, and demand.'
-explanation_text4 = 'The forecast line is visible at the date: 30/05/2022.'
+explanation_text4 = 'The time interval has been set to 3 seconds. The forecast line is visible at the date: 30/05/2022.'
 
 def pop_up_modal():
     return html.Div(
@@ -120,15 +115,13 @@ app.title = "UTS Capstone Project 12900825"
 # Styling the tabs
 
 tab_styling = {
-    'border': '1px solid #d6d6d6',
+    'border': '1px solid #bab5b5',
     'backgroundColor': 'white',
-
 }
 
 tab_selected_styling = {
-    'borderTop': '1px solid #d6d6d6',
-    'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
+    'borderTop': '1px solid #bab5b5',
+    'backgroundColor': '#1fa3ff',
     'color': 'white',
 }
 
@@ -168,11 +161,12 @@ app.layout = html.Div([
         id='interval-component',
         interval=3 * 1000,  # in milliseconds
         n_intervals=10,
-        max_intervals=1920
+        max_intervals=1920  # DataFrame index for 30/06/2022
     ),
     html.H3('George El-Zakhem 12900825', style={'margin': '10px 2rem', 'font-size': '20px'}),
 ])
 
+# Visualisation Callback
 @app.callback(
     Output('line_graph','figure'),
     Output('bar_graph', 'figure'),
@@ -196,10 +190,10 @@ def update_figure(n_intervals, selected_state, selected_method):
     min_demand = np.amin(demand)
     max_demand = np.amax(demand)
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # Line Graph below
+    line_figure = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # Add traces
-    fig.add_trace(
+    line_figure.add_trace(
         go.Scatter(x=dates[n_intervals-10 : n_intervals], y=price[n_intervals-10 : n_intervals], name="price", marker_color="blue",
             marker=dict(
                 size=15,
@@ -212,7 +206,7 @@ def update_figure(n_intervals, selected_state, selected_method):
         secondary_y=False,
     )
 
-    fig.add_trace(
+    line_figure.add_trace(
         go.Scatter(x=dates[n_intervals-10 : n_intervals], y=demand[n_intervals-10 : n_intervals], name="demand", marker_color='purple',
             marker=dict(
                 size=15,
@@ -225,17 +219,17 @@ def update_figure(n_intervals, selected_state, selected_method):
         secondary_y=True,
     )
 
-    fig.update_layout(
+    line_figure.update_layout(
         title_text="Line Graph"
     )
 
-    fig.update_xaxes(title_text="Time Period")
-    fig.update_yaxes(title_text="<b>Price</b> ($AUD)", secondary_y=False, range=(min_price - 10, max_price + 10), constrain='domain')
-    fig.update_yaxes(title_text="<b>Demand</b> (MW)", secondary_y=True, range=(min_demand - 15000, max_demand + 15000), constrain='domain')
+    line_figure.update_xaxes(title_text="Time Period")
+    line_figure.update_yaxes(title_text="<b>Price</b> ($AUD)", secondary_y=False, range=(min_price - 10, max_price + 10), constrain='domain')
+    line_figure.update_yaxes(title_text="<b>Demand</b> (MW)", secondary_y=True, range=(min_demand - 15000, max_demand + 15000), constrain='domain')
 
-    # check if its in the last 10 elements of dates array
-    if '30/05/2022 0:30' in dates[-10:]:
-        fig.add_vline(x='30/05/2022 0:30', line_dash="dash", line_width=3);
+    # Adding forecast line for line graph
+    if '30/05/2022 0:00' in dates[-10:]:
+        line_figure.add_vline(x='30/05/2022 0:00', line_dash="dash", line_width=3);
     else:
         pass
 
@@ -256,23 +250,25 @@ def update_figure(n_intervals, selected_state, selected_method):
 
     bar_chart.update_layout(barmode='group', title_text="Bar Chart")
 
-    if '30/05/2022 0:30' in dates[-10:]:
-        bar_chart.add_vline(x='30/05/2022 0:30', line_dash="dash", line_width=14)
+    # Adding forecast line for bar chart
+    if '30/05/2022 0:00' in dates[-10:]:
+        bar_chart.add_vline(x='30/05/2022 0:00', line_dash="dash", line_width=14)
     else:
         pass
 
     # Table graph
     the_table = filtered_df.to_dict('records')
 
-    return fig, bar_chart, the_table
+    return line_figure, bar_chart, the_table
 
+# Modal Callback
 @app.callback(
     Output("explanation_modal", "is_open"),
     [Input("modal_button", "n_clicks"), Input("close_button", "n_clicks")],
     [State("explanation_modal", "is_open")],
 )
 
-def update_modall(n1, n2, is_open):
+def update_modal(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     else:
